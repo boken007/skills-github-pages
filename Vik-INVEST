@@ -1,0 +1,280 @@
+<!DOCTYPE html><html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vik-INVEST</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.17.2/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.17.2/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.17.2/firebase-firestore.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-100 font-sans">
+  <div id="app" class="max-w-md mx-auto mt-10 p-6 bg-white rounded-lg shadow-lg">
+    <div class="flex items-center justify-center mb-6">
+      <i data-lucide="trending-up" class="w-8 h-8 text-green-600 mr-2"></i>
+      <h1 class="text-2xl font-bold text-green-600">Vik-INVEST</h1>
+    </div><div id="login-section">
+  <div class="flex justify-center mb-4 space-x-4">
+    <button onclick="mostrarLogin()" class="px-4 py-2 bg-blue-500 text-white rounded">Entrar</button>
+    <button onclick="mostrarRegistro()" class="px-4 py-2 bg-gray-500 text-white rounded">Registrar</button>
+  </div>
+
+  <div id="form-login">
+    <input type="text" id="login-phone" placeholder="Número de telefone" class="w-full p-2 mb-3 border border-gray-300 rounded" />
+    <input type="password" id="login-senha" placeholder="Senha" class="w-full p-2 mb-3 border border-gray-300 rounded" />
+    <label class="mb-2 block font-medium">Quanto é 4 + 3?</label>
+    <input type="text" id="login-resposta" placeholder="Resposta" class="w-full p-2 mb-4 border border-gray-300 rounded" />
+    <button onclick="entrar()" class="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700 transition">Entrar</button>
+  </div>
+
+  <div id="form-registro" class="hidden">
+    <input type="text" id="registro-phone" placeholder="Número de telefone" class="w-full p-2 mb-3 border border-gray-300 rounded" />
+    <input type="password" id="registro-senha" placeholder="Senha" class="w-full p-2 mb-3 border border-gray-300 rounded" />
+    <div class="mb-3">
+      <label class="block font-medium mb-1">Código de convite (apresentado):</label>
+      <div id="registro-referral-text" class="p-2 bg-gray-100 rounded">Sem convite</div>
+    </div>
+    <label class="mb-2 block font-medium">Quanto é 4 + 3?</label>
+    <input type="text" id="registro-resposta" placeholder="Resposta" class="w-full p-2 mb-4 border border-gray-300 rounded" />
+    <button onclick="registrar()" class="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700 transition">Registrar</button>
+  </div>
+</div>
+
+<div id="projetos-section" class="hidden">
+  <h2 class="text-xl font-semibold mb-4 text-center">Painel do Investidor</h2>
+  <div class="mb-4 text-center font-medium">Saldo atual: <span id="saldo-atual" class="text-green-600">0MT</span></div>
+
+  <div class="mb-6">
+    <canvas id="investmentChart" width="300" height="300"></canvas>
+  </div>
+
+  <div class="flex justify-between space-x-2 mb-4">
+    <button onclick="depositar()" class="flex-1 bg-indigo-600 text-white py-2 rounded">Depositar</button>
+    <button onclick="levantar()" class="flex-1 bg-red-600 text-white py-2 rounded">Levantamento</button>
+    <button onclick="checkinDiario()" class="flex-1 bg-yellow-500 text-white py-2 rounded">Check-in Diário</button>
+  </div>
+
+  <h3 class="text-lg font-semibold mb-2">Planos de Investimento</h3>
+  <div class="p-3 bg-gray-50 rounded border mb-3">
+    <p>Plano 1: 200MT</p>
+    <p>Plano 2: 500MT</p>
+    <p>Plano 3: 1000MT</p>
+    <p>Plano 4: 5000MT</p>
+    <p>Plano 5: 20000MT</p>
+  </div>
+
+  <div class="grid gap-2 mb-4">
+    <button onclick="investirPacote(200)" class="w-full bg-green-700 text-white py-2 rounded">Investir 200MT</button>
+    <button onclick="investirPacote(500)" class="w-full bg-green-700 text-white py-2 rounded">Investir 500MT</button>
+    <button onclick="investirPacote(1000)" class="w-full bg-green-700 text-white py-2 rounded">Investir 1000MT</button>
+    <button onclick="investirPacote(5000)" class="w-full bg-green-700 text-white py-2 rounded">Investir 5000MT</button>
+    <button onclick="investirPacote(20000)" class="w-full bg-green-700 text-white py-2 rounded">Investir 20000MT</button>
+  </div>
+
+  <div class="mt-6">
+    <h3 class="text-lg font-semibold mb-2">Meus Dados</h3>
+    <p><strong>Número de telefone:</strong> <span id="user-phone"></span></p>
+    <p><strong>Senha:</strong> <span id="user-senha"></span></p>
+    <p><strong>Código de convite:</strong> <span id="user-referral-code"></span></p>
+    <p><strong>Link de convite:</strong> <a href="#" id="user-invite-link" class="text-blue-600">Compartilhar convite</a></p>
+  </div>
+
+  <button onclick="logout()" class="w-full bg-gray-600 text-white py-2 rounded mt-2">Sair</button>
+</div>
+
+  </div>  <script>
+    lucide.createIcons();
+
+    let pergunta, resultado, saldo = 0;
+    let userId = "";
+    let userRef = null;
+
+    let investimentosAtivos = 0;
+    let investimentosFinalizados = 0;
+
+    function gerarVerificacao() {
+      const a = Math.floor(Math.random() * 5) + 3;
+      const b = Math.floor(Math.random() * 5) + 1;
+      pergunta = `${a} + ${b}`;
+      resultado = (a + b).toString();
+      document.querySelectorAll("label").forEach(label => {
+        if (label.textContent.includes("Quanto é")) {
+          label.textContent = `Quanto é ${pergunta}?`;
+        }
+      });
+    }
+
+    document.addEventListener("DOMContentLoaded", async () => {
+      gerarVerificacao();
+      const storedUID = localStorage.getItem("anonUID");
+      if (storedUID) {
+        const query = await firestore.collection('users').doc(storedUID).get();
+        if (query.exists) {
+          userId = storedUID;
+          userRef = query.ref;
+          document.getElementById("login-section").classList.add("hidden");
+          document.getElementById("projetos-section").classList.remove("hidden");
+          carregarProjetos();
+        }
+      }
+    });
+
+    function mostrarLogin() {
+      document.getElementById("form-login").classList.remove("hidden");
+      document.getElementById("form-registro").classList.add("hidden");
+      gerarVerificacao();
+    }
+
+    function mostrarRegistro() {
+      document.getElementById("form-login").classList.add("hidden");
+      document.getElementById("form-registro").classList.remove("hidden");
+      gerarVerificacao();
+    }
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyB_s02vac_SBpAGyU2vTf_CpnAD7SiDOrU",
+      authDomain: "cash-ba7f4.firebaseapp.com",
+      projectId: "cash-ba7f4",
+      storageBucket: "cash-ba7f4.firebasestorage.app",
+      messagingSenderId: "981487336589",
+      appId: "1:981487336589:web:a6b4098cebc49e1451b6c4"
+    };
+
+    const app = firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const firestore = firebase.firestore();
+
+    async function carregarProjetos() {
+      const query = await firestore.collection('investimentos').where('userId', '==', userId).get();
+      investimentosAtivos = 0;
+      investimentosFinalizados = 0;
+
+      query.forEach(doc => {
+        const investimento = doc.data();
+        if (investimento.status === 'ativo') {
+          investimentosAtivos++;
+        } else if (investimento.status === 'finalizado') {
+          investimentosFinalizados++;
+        }
+      });
+
+      atualizarGrafico();
+
+      document.getElementById("user-phone").textContent = query.docs[0].data().phone;
+      document.getElementById("user-senha").textContent = query.docs[0].data().senha;
+      document.getElementById("user-referral-code").textContent = query.docs[0].data().referralCode;
+      document.getElementById("user-invite-link").href = `${window.location.origin}/?referral=${query.docs[0].id}`;
+    }
+
+    function atualizarGrafico() {
+      const ctx = document.getElementById('investmentChart').getContext('2d');
+      const data = {
+        labels: ['Ativos', 'Finalizados'],
+        datasets: [{
+          data: [investimentosAtivos, investimentosFinalizados],
+          backgroundColor: ['#4CAF50', '#FF5722'],
+          hoverBackgroundColor: ['#388E3C', '#D32F2F'],
+        }],
+      };
+
+      new Chart(ctx, {
+        type: 'pie',
+        data: data,
+        options: {
+          responsive: true,
+          plugins: {
+            legend: {
+              position: 'top',
+            },
+          },
+        },
+      });
+    }
+
+    async function entrar() {
+      const phone = document.getElementById("login-phone").value.trim();
+      const senha = document.getElementById("login-senha").value.trim();
+      const resposta = document.getElementById("login-resposta").value.trim();
+
+      if (resposta !== resultado) {
+        alert("Verificação falhou.");
+        gerarVerificacao();
+        return;
+      }
+
+      const phoneRegex = /^(\+258|258)?(84|85|86|87|82)\d{7}$/;
+      if (!phoneRegex.test(phone)) {
+        alert("Telefone inválido.");
+        return;
+      }
+
+      try {
+        const userCredential = await auth.signInAnonymously();
+        userId = userCredential.user.uid;
+        const query = await firestore.collection('users').where('phone', '==', phone).limit(1).get();
+        if (!query.empty) {
+          userRef = query.docs[0].ref;
+          localStorage.setItem("anonUID", userId);
+          document.getElementById("login-section").classList.add("hidden");
+          document.getElementById("projetos-section").classList.remove("hidden");
+          carregarProjetos();
+        } else {
+          alert("Usuário não encontrado.");
+        }
+      } catch (error) {
+        alert("Erro ao fazer login: " + error.message);
+      }
+    }
+
+    async function registrar() {
+      const phone = document.getElementById("registro-phone").value.trim();
+      const senha = document.getElementById("registro-senha").value.trim();
+      const resposta = document.getElementById("registro-resposta").value.trim();
+
+      if (resposta !== resultado) {
+        alert("Verificação falhou.");
+        gerarVerificacao();
+        return;
+      }
+
+      const phoneRegex = /^(\+258|258)?(84|85|86|87|82)\d{7}$/;
+      if (!phoneRegex.test(phone)) {
+        alert("Telefone inválido.");
+        return;
+      }
+
+      try {
+        const userCredential = await auth.createUserWithEmailAndPassword(`${phone}@example.com`, senha);
+        const user = userCredential.user;
+        const referralCode = Math.floor(Math.random() * 1000000); // Código de convite aleatório
+
+        // Salvar o usuário no Firestore
+        await firestore.collection('users').doc(user.uid).set({
+          phone,
+          senha,
+          referralCode,
+        });
+
+        localStorage.setItem("anonUID", user.uid);
+        alert("Registro bem-sucedido. Você será redirecionado para a tela de login.");
+        
+        // Redirecionar para o login
+        mostrarLogin();
+
+      } catch (error) {
+        alert("Erro ao registrar: " + error.message);
+      }
+    }
+
+    function logout() {
+      auth.signOut().then(() => {
+        localStorage.removeItem("anonUID");
+        document.getElementById("projetos-section").classList.add("hidden");
+        document.getElementById("login-section").classList.remove("hidden");
+      });
+    }
+  </script></body>
+</html>
+
